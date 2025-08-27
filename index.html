@@ -62,7 +62,7 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .badge.support {
+    .badge.support,.btn.support {
       background: #fd0;
       color: #060606;
       text-decoration: none;
@@ -76,6 +76,12 @@
       background: #f3f7ff;
       border-radius: 8px;
       cursor: pointer;
+    }
+    .btn.start{ 
+      background: var(--brand);
+      color: #ffffff;
+      border-color: var(--brand);
+      font-weight: 500;
     }
     .btn:hover { background: #e7f0ff; color: #0f4bd1 }
 
@@ -199,15 +205,52 @@
     .summary { padding: 12px 16px }
     .summary ul { margin: 6px 0 0 18px }
 
+    /* Mobile / tablet: stack title under the row, wrap actions */
     @media (max-width: 900px) {
-      .wrap { grid-template-columns: 1fr; }
-      .inbox, .reader { height: auto; }
-      .brand span{display:none;}
-      .badge { 
-        display: flex;
-        flex-direction: column;
+      .topbar{
+        display: grid;
+        grid-template-columns: 1fr auto;         /* brand | actions */
+        grid-template-areas:
+          "brand actions"
+          "title title";                          /* title spans full width */
         align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
       }
+      .brand{ grid-area: brand; }
+      .game-title{
+        grid-area: title;
+        justify-self: center;
+        font-size: 16px;
+        line-height: 1.1;
+      }
+      .bar-actions{
+        grid-area: actions;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;                          /* let buttons wrap */
+        justify-content: flex-end;
+      }
+
+      /* make controls more compact */
+      .brand img{ height: 24px; }
+      .btn{ padding: 6px 8px; font-size: 13px; }
+      .badge{ padding: 4px 8px; font-size: 12px; }
+
+      /* save space: hide support pill on smaller screens */
+      .brand .badge.support{ display: none; }
+
+      /* your existing small-screen layout bits */
+      .wrap{ grid-template-columns: 1fr; }
+      .inbox, .reader{ height: auto; }
+    }
+
+    /* Very small phones: shave a bit more space */
+    @media (max-width: 480px){
+      .game-title{ font-size: 15px; }
+      .btn#btnDirectory,
+      .btn#btnHelp{ font-size: 12px; padding: 6px 8px; }
+      .badge{ font-size: 11px; }
     }
   </style>
 </head>
@@ -298,7 +341,8 @@
         </ul>
         <p><b>Scoring</b>: +2 correct · −2 incorrect · −1 if you open a malicious link or attachment. Flagging has no score, but decide before 17:00.</p>
         <div style="display:flex; gap:8px; justify-content:flex-end; padding-top:8px">
-          <button class="btn" id="closeHelp">Start</button>
+          <a class="btn support" href="https://buymeacoffee.com/darkesto" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+          <button class="btn start" id="closeHelp">Start</button>
         </div>
       </div>
     </div>
@@ -311,6 +355,7 @@
       <div class="summary" id="debrief"></div>
       <div style="display:flex; gap:8px; justify-content:flex-end; padding:0 16px 14px">
         <button class="btn" onclick="location.reload()">Restart</button>
+        <a class="btn support" href="https://buymeacoffee.com/darkesto" target="_blank" rel="noopener">☕ Buy me a coffee</a>
         <button class="btn" id="closeEnd">Close</button>
       </div>
     </div>
