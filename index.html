@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Don't Click It — Workday Email Simulator</title>
+  <link rel="icon" type="image/png" href="assets/img/icon.png">
+  <style>
+    :root {
+      --bg: #f5f6fa;
+      --panel: #ffffff;
+      --panel2: #ffffff;
+      --ink: #2d3436;
+      --muted: #6c7a89;
+      --brand: #2f80ed;
+      --ok: #27ae60;
+      --warn: #f2994a;
+      --danger: #eb5757;
+      --accent: #2f80ed;
+      --line: #e6ebf2;
+    }
+
+    * { box-sizing: border-box }
+    html, body { height: 100% }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .logo-sm { height: 20px; border-radius: 4px; vertical-align: middle; margin-right: 8px }
+    .inbox-wrapper-text-logo { display: flex; align-items: center; justify-content: space-between; }
+    .inbox-wrapper-text-logo img { max-width: 78px; margin:12px; }
+
+    /* Topbar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #ffffffcc;
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px;}
+    .brand span {font-weight: 700; color: var(--accent);}
+    .brand img { height: 28px; border-radius: 6px }
+    .bar-actions { display: flex; gap: 8px; align-items: center }
+    .badge {
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-variant-numeric: tabular-nums;
+      
+    }
+    .btn {
+      padding: 8px 12px;
+      border: 1px solid #cfe0ff;
+      color: #1b5fd6;
+      background: #f3f7ff;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn:hover { background: #e7f0ff; color: #0f4bd1 }
+
+    /* Layout */
+    .wrap {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 14px;
+      padding: 14px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .03);
+    }
+    .panel h3 {
+      margin: 0;
+      padding: 12px 14px;
+      color: var(--ink);
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* Inbox */
+    .inbox { display: flex; flex-direction: column; height: calc(100vh - 96px) }
+    .folders { display: flex; gap: 6px; padding: 10px }
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #d0d8e5;
+      color: #5b6b7a;
+      cursor: pointer;
+    }
+    .pill.active { border-color: var(--brand); color: var(--brand) }
+    .list { overflow: auto }
+    .email-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      padding: 10px 12px;
+      border-top: 1px solid #e6ebf2;
+      cursor: pointer;
+    }
+    .email-item:hover { background: #f2f4f8 }
+    .email-item.unread .subject { font-weight: 700 }
+    .from { color: var(--ink) }
+    .subject { color: var(--ink) }
+    .meta { color: var(--muted); font-size: 12px }
+    .tag {
+      font-size: 11px; border: 1px solid #d0d8e5; color: #5b6b7a;
+      padding: 2px 6px; border-radius: 999px; margin-left: 6px;
+    }
+
+    /* Reader */
+    .reader { display: flex; flex-direction: column; height: calc(100vh - 96px) }
+    .reader-head {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fbfcfe;
+    }
+    .avatar {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid #cfd8e3;
+      display: flex; align-items: center; justify-content: center; background: #eef3fb; color: #2f80ed; font-weight: 700;
+    }
+    .reader-body { padding: 16px; overflow: auto }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 8px }
+    .action {
+      padding: 10px 12px; border: 1px solid #d8e1ec; border-radius: 8px;
+      background: #f7f9fc; color: #2d3436; cursor: pointer;
+    }
+    .action:hover { background: #eef3fb }
+
+    .info-line { color: #6c7a89; font-size: 13px }
+    code.inline { border: 1px solid #d0d8e5; background: #f6f8fb; padding: 2px 6px; border-radius: 6px }
+
+    /* Directory modal */
+    .modal {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, .7); z-index: 50;
+    }
+    .card {
+      background: #ffffff; border: 1px solid var(--line); border-radius: 14px;
+      max-width: 900px; width: calc(100% - 40px); max-height: 80vh; overflow: auto;
+    }
+    .card h3 { margin: 0; padding: 12px 14px; color: var(--ink); border-bottom: 1px solid var(--line) }
+    .dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 12px }
+    .person {
+      background: #ffffff; border: 1px solid #e6ebf2; border-radius: 12px; padding: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    }
+    .person img { width: 48px; height: 48px; border-radius: 50%; border: 1px solid #e0e7ef; object-fit: cover }
+    .person .mono {
+      width: 48px; height: 48px; border-radius: 50%; border: 1px solid #e0e7ef;
+      background: #eef3fb; display: flex; align-items: center; justify-content: center; color: #2f80ed; font-weight: 700;
+    }
+    .person .p-top { display: flex; align-items: center; gap: 10px }
+    .person .name { font-weight: 700 }
+    .person .mail { font-size: 13px; color: #5b6b7a }
+
+    /* Headers drawer */
+    .drawer { position: sticky; bottom: 0; border-top: 1px solid var(--line); background: #fbfcfe; padding: 12px 14px }
+    .drawer pre { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas; color: #334e68 }
+
+    a.fake { color: #1b5fd6; text-decoration: underline; cursor: help; position: relative }
+    a.fake:hover::after {
+      content: attr(data-href);
+      position: absolute; left: 0; top: 100%; transform: translateY(6px);
+      background: #06101f; border: 1px solid #254672; padding: 4px 8px; color: #bfe3ff; border-radius: 6px; white-space: nowrap;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; right: 14px; bottom: 14px;
+      background: #ffffff; border: 1px solid #cfd8e3; color: #2d3436;
+      padding: 10px 12px; border-radius: 10px; display: none;
+    }
+
+    /* End modal */
+    .summary { padding: 12px 16px }
+    .summary ul { margin: 6px 0 0 18px }
+
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      .inbox, .reader { height: auto; }
+      .brand span{display:none;}
+      .badge { 
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="brand"><img src="assets/img/logo.png" alt="logo" /></div>
+    <span>Don't Click It</span>
+    <div class="bar-actions">
+      <span class="badge">🕒 <span id="workClock">09:00</span></span>
+      <button class="btn" id="btnDirectory">📇 Trombinoscope</button>
+      <button class="btn" id="btnHelp">❓ Help</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Inbox -->
+    <div class="panel inbox">
+      <div class="inbox-wrapper-text-logo">
+        <h3>Inbox</h3>
+        <img src="assets/img/novacore.png" alt="Novacore Solutions">
+      </div>
+      <div class="folders">
+        <span class="pill active" data-filter="all">All</span>
+        <span class="pill" data-filter="unread">Unread</span>
+        <span class="pill" data-filter="flagged">Flagged</span>
+        <span class="pill" data-filter="phish">Reported</span>
+      </div>
+      <div class="list" id="inboxList"></div>
+    </div>
+
+    <!-- Reader -->
+    <div class="panel reader">
+      <div class="reader-head" id="readerHead">
+        <div class="avatar" id="avatar">?</div>
+        <div>
+          <div id="headSubject" style="font-weight:700"></div>
+          <div class="info-line" id="headMeta"></div>
+        </div>
+      </div>
+      <div class="reader-body" id="readerBody"><!-- no callout --></div>
+      <div class="drawer" id="readerDrawer" style="display:none">
+        <div class="actions" style="margin-bottom:8px">
+          <button class="action" id="actMarkSafe">✅ Mark Safe</button>
+          <button class="action" id="actReport">🚨 Report Phishing</button>
+          <button class="action" id="actFlag">🏳️ Flag</button>
+          <button class="action" id="actHeaders">🧾 View Headers</button>
+          <button class="action" id="actReveal">🔍 Reveal Link Destinations</button>
+          <button class="action" id="actSandbox">🧪 Open Link in Sandbox</button>
+          <button class="action" id="actAttach">📎 View Attachment</button>
+        </div>
+        <pre id="headersBox" style="display:none"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Directory Modal -->
+  <div class="modal" id="dirModal">
+    <div class="card">
+      <h3><img src="assets/img/novacore.png" class="logo-sm" alt="Novacore Solutions logo"> 📇 Trombinoscope — Novacore Solutions</h3>
+      <div style="padding:12px; display:flex; gap:8px; align-items:center">
+        <input id="dirSearch" placeholder="Search name, team, or email"
+          style="flex:1; padding:10px; border-radius:8px; border:1px solid #d0d8e5; background:#fff; color:var(--ink)" />
+        <button class="btn" id="closeDir">Close</button>
+      </div>
+      <div class="dir-grid" id="dirGrid"></div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal" id="helpModal">
+    <div class="card">
+      <h3><img src="assets/img/novacore.png" class="logo-sm" alt="Novacore Solutions logo"> How to Play</h3>
+      <div class="summary">
+        <p>You have one simulated workday. Emails arrive over time. Use the Trombinoscope (company directory) and the tools to decide if each message is legitimate or phishing.</p>
+          <ul>
+            <li><b>Mark Safe</b> for legitimate internal emails.</li>
+            <li><b>Report Phishing</b> for malicious or suspicious emails.</li>
+            <li><b>Flag</b> when unsure. You can revisit later.</li>
+          </ul>
+          <p>Additionally, you can use the following tools:</p>
+        <ul>
+          <li><b>Headers</b> — See SPF/DKIM/DMARC, Reply-To, and domain age.</li>
+          <li><b>Reveal Links</b> — Show the real destination of links.</li>
+          <li><b>Sandbox</b> — Safely open the first link (simulated).</li>
+          <li><b>Attachment</b> — Preview attachment type (simulated).</li>
+        </ul>
+        <p><b>Scoring</b>: +2 correct · −2 incorrect · −1 if you open a malicious link or attachment. Flagging has no score, but decide before 17:00.</p>
+        <div style="display:flex; gap:8px; justify-content:flex-end; padding-top:8px">
+          <button class="btn" id="closeHelp">Start</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End-of-Day Modal -->
+  <div class="modal" id="endModal">
+    <div class="card">
+      <h3><img src="assets/img/novacore.png" class="logo-sm" alt="Novacore Solutions logo"> Day Complete — Debrief</h3>
+      <div class="summary" id="debrief"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; padding:0 16px 14px">
+        <button class="btn" onclick="location.reload()">Restart</button>
+        <button class="btn" id="closeEnd">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /*********************************
+     * CONFIG
+     *********************************/
+    const HARD_MODE = true;            // Enable trickier cues
+    const WORK_START = 9 * 60;         // minutes from 00:00
+    const WORK_END = 17 * 60;          // minutes from 00:00
+    const TICK_MS = 10000;             // real-time seconds per simulated 10 minutes
+    const EMAIL_INTERVAL_MIN = 8;      // minutes between email arrivals (simulated)
+    const SHOW_ANSWER_KEY = false;     // facilitator debug
+    const EMAILS_TO_DEAL = 15;         // emails per playthrough
+
+    /*********************************
+     * DATA: Directory (Trombinoscope)
+     *********************************/
+    const directory = [
+      { name: "Alex Gomez",   team: "IT Ops",      role: "Sysadmin",       email: "alex.gomez@novacore.com",    phone: "x4412" },
+      { name: "Jamie Rivers", team: "Interns",     role: "Student",        email: "jamie.rivers@novacore.com",  phone: "x1197" },
+      { name: "Sarah Jones",  team: "Marketing",   role: "Manager",        email: "sarah.jones@novacore.com",   phone: "x3321" },
+      { name: "Priya Patel",  team: "Finance",     role: "Payroll Lead",   email: "priya.patel@novacore.com",   phone: "x2250" },
+      { name: "Liu Wei",      team: "Security",    role: "Analyst",        email: "liu.wei@novacore.com",       phone: "x7714" },
+      { name: "Marta Kowalski",team:"HR",          role: "HRBP",           email: "marta.kowalski@novacore.com",phone: "x6628" },
+      { name: "Jonas Richter",team: "Engineering", role: "SRE",            email: "jonas.richter@novacore.com", phone: "x5583" },
+      { name: "Ana Sousa",    team: "Sales",       role: "AM EMEA",        email: "ana.sousa@novacore.com",     phone: "x4842" },
+      { name: "Omar El-Sayed",team: "Legal",       role: "Counsel",        email: "omar.elsayed@novacore.com",  phone: "x9091" },
+      { name: "CEO Office",   team: "Executive",   role: "Chief of Staff", email: "ceo-office@novacore.com",    phone: "x1000" }
+    ];
+    function initials(name) { return name.split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase() }
+
+    /*********************************
+     * DATA: Emails (50 total) — 30 legit / 20 phish
+     *********************************/
+    const emails = [
+      // 1 — Payroll lookalike (phish)
+      { id:1,time:"09:05",fromName:"Priya Patel",fromEmail:"priya.patel@novacore-payroll.com",
+        replyTo:"support@novacore-payroll.com",subject:"Immediate Action Required: Payroll profile locked",
+        body:`Your payroll access was locked after a policy update. Please <a class="fake" data-href="https://novacore-payroll.com/sso">re-authenticate here</a> within 30 minutes to avoid payment delay.<br><br>— Priya`,
+        attachments:[],links:["https://novacore-payroll.com/sso"],
+        headers:{spf:"fail",dkim:"none",dmarc:"fail",ageDays:2,fromDomain:"novacore-payroll.com"},
+        classification:"phish",
+        explanation:"Vendor lookalike; Finance uses novacore.com. SPF/DMARC fail; urgent CTA."},
+
+      // 2 — CEO gift cards (phish)
+      { id:2,time:"09:08",fromName:"CEO Office",fromEmail:"ceo.office@novacore-corp.com",
+        replyTo:"ceo.office@novacore-corp.com",subject:"Quick favor before my flight",
+        body:`Can you buy six €200 gift cards and send me the codes? I can't talk now. —CEO`,
+        attachments:[],links:[],
+        headers:{spf:"softfail",dkim:"none",dmarc:"fail",ageDays:1,fromDomain:"novacore-corp.com"},
+        classification:"phish",
+        explanation:"Lookalike hyphen domain; finance request outside policy."},
+
+      // 3 — IT change (legit)
+      { id:3,time:"09:12",fromName:"Liu Wei",fromEmail:"liu.wei@novacore.com",
+        replyTo:"security@novacore.com",subject:"Okta maintenance tonight 22:00–23:00",
+        body:`Heads-up: routine IdP patching tonight. No action required. Details: <a class="fake" data-href="https://wiki.novacore.com/security/changes">internal wiki</a>.`,
+        attachments:[],links:["https://wiki.novacore.com/security/changes"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1800,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal sender/domain; neutral language; passes auth."},
+
+      // 4 — OAuth consent homograph (phish)
+      { id:4,time:"09:16",fromName:"Sarah Jones",fromEmail:"sarah.jones@novacоre.com", // Cyrillic 'o'
+        replyTo:"no-reply@dropbox-secure.app",subject:"Share: Q3 videos",
+        body:`I've shared the videos. Click <a class="fake" data-href="https://dropbox.com/sso/consent?app=secure-suite">Open</a> and approve the app permission.`,
+        attachments:[],links:["https://dropbox.com/sso/consent?app=secure-suite"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"none",ageDays:3,fromDomain:"novacоre.com"},
+        classification:"phish",
+        explanation:"Homograph domain ('o' is Cyrillic). OAuth consent steal."},
+
+      // 5 — Calendar invite internal (legit) [flipped]
+      { id:5,time:"09:20",fromName:"Ana Sousa",fromEmail:"ana.sousa@novacore.com",
+        replyTo:"ana.sousa@novacore.com",subject:"Invite: Client debrief",
+        body:`Please see attached calendar invite.`,
+        attachments:[{name:"client_debrief.ics",type:"text/calendar",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1200,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal organizer; Reply-To matches; .ics from corporate calendar."},
+
+      // 6 — Vendor invoice (legit)
+      { id:6,time:"09:24",fromName:"Bel Espoir",fromEmail:"billing@belespoir.fr",
+        replyTo:"billing@belespoir.fr",subject:"Invoice #BE-4412 (October)",
+        body:`As usual, invoice attached. PO 77431.`,
+        attachments:[{name:"BE-4412.pdf",type:"application/pdf",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:3650,fromDomain:"belespoir.fr"},
+        classification:"legit",
+        explanation:"Known vendor; matches process; passes auth."},
+
+      // 7 — QR mailbox upgrade (phish)
+      { id:7,time:"09:28",fromName:"IT Support",fromEmail:"support@novacore-helpdesk.com",
+        replyTo:"support@novacore-helpdesk.com",subject:"Mailbox nearly full — scan to expand storage",
+        body:`We've upgraded mailboxes. Scan the attached QR to validate your account.`,
+        attachments:[{name:"upgrade_qr.png",type:"image/png",malicious:true}],links:[],
+        headers:{spf:"fail",dkim:"none",dmarc:"fail",ageDays:0,fromDomain:"novacore-helpdesk.com"},
+        classification:"phish",
+        explanation:"External lookalike helpdesk; QR to bypass link scanning."},
+
+      // 8 — GitHub token expiry (legit)
+      { id:8,time:"09:32",fromName:"GitHub",fromEmail:"noreply@github.com",
+        replyTo:"noreply@github.com",subject:"Your PAT expires in 7 days",
+        body:`Token 'sre-build' for jonas.richter expires soon. <a class="fake" data-href="https://github.com/settings/tokens">Manage tokens</a>.`,
+        attachments:[],links:["https://github.com/settings/tokens"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:6000,fromDomain:"github.com"},
+        classification:"legit",
+        explanation:"Official domain; passes auth; plausible dev context."},
+
+      // 9 — Shipment tax shortener (phish)
+      { id:9,time:"09:36",fromName:"LogiPost",fromEmail:"notify@logipost.co",
+        replyTo:"notify@logipost.co",subject:"Package pending import tax payment",
+        body:`Pay here: <a class="fake" data-href="https://bit.ly/4aTaxEU">link</a>`,
+        attachments:[],links:["https://bit.ly/4aTaxEU"],
+        headers:{spf:"pass",dkim:"none",dmarc:"none",ageDays:10,fromDomain:"logipost.co"},
+        classification:"phish",
+        explanation:"Irrelevant to work; masked link; weak auth alignment."},
+
+      // 10 — Security awareness (legit)
+      { id:10,time:"09:40",fromName:"Security",fromEmail:"security@novacore.com",
+        replyTo:"security@novacore.com",subject:"Monthly phishing drill results & tips",
+        body:`Thanks for participating. Results: <a class="fake" data-href="https://wiki.novacore.com/security/phish-results">internal wiki</a>.`,
+        attachments:[],links:["https://wiki.novacore.com/security/phish-results"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1500,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal; no credential request; passes auth."},
+
+      // 11 — Fake Drive share (phish)
+      { id:11,time:"09:44",fromName:"Google Drive",fromEmail:"no-reply@docs-share.com",
+        replyTo:"no-reply@docs-share.com",subject:"Ana Sousa shared a file with you",
+        body:`Open: <a class="fake" data-href="https://docs-share.com/file/ANA-PRICES">Q4 price sheet</a>`,
+        attachments:[],links:["https://docs-share.com/file/ANA-PRICES"],
+        headers:{spf:"softfail",dkim:"none",dmarc:"fail",ageDays:5,fromDomain:"docs-share.com"},
+        classification:"phish",
+        explanation:"Not a Google domain; uses colleague name as lure."},
+
+      // 12 — Vendor bank change (phish)
+      { id:12,time:"09:48",fromName:"Bel Espoir",fromEmail:"billing@belespoir.fr",
+        replyTo:"finance@belespoir-pay.com",subject:"URGENT: Bank account updated",
+        body:`We changed our IBAN. Use the new account for today's transfer. <a class="fake" data-href="https://belespoir-pay.com/iban">View IBAN</a>`,
+        attachments:[],links:["https://belespoir-pay.com/iban"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"none",ageDays:2,fromDomain:"belespoir.fr"},
+        classification:"phish",
+        explanation:"Reply-To mismatch and urgent banking change via email."},
+
+      // 13 — HR policy (legit)
+      { id:13,time:"09:52",fromName:"Marta Kowalski",fromEmail:"marta.kowalski@novacore.com",
+        replyTo:"hr@novacore.com",subject:"Updated Remote Work Policy (effective Nov 1)",
+        body:`Please review the updated policy: <a class="fake" data-href="https://wiki.novacore.com/hr/remote-policy">wiki page</a>.`,
+        attachments:[],links:["https://wiki.novacore.com/hr/remote-policy"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:2500,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal; normal channel; wiki link."},
+
+      // 14 — Quarantine summary internal (legit) [flipped]
+      { id:14,time:"09:56",fromName:"Email Security",fromEmail:"security@novacore.com",
+        replyTo:"security@novacore.com",subject:"Daily quarantine summary (no action required)",
+        body:`To review safely use the internal portal: <a class="fake" data-href="https://mail.novacore.com/quarantine">mail.novacore.com/quarantine</a>`,
+        attachments:[],links:["https://mail.novacore.com/quarantine"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:2000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal digest linking to company mail portal; SSO protected."},
+
+      // 15 — Sales deck (legit)
+      { id:15,time:"10:00",fromName:"Ana Sousa",fromEmail:"ana.sousa@novacore.com",
+        replyTo:"ana.sousa@novacore.com",subject:"Deck for EMEA Q4",
+        body:`Slides attached for tomorrow.`,
+        attachments:[{name:"EMEA_Q4.pptx",type:"application/vnd.openxmlformats-officedocument.presentationml.presentation",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1100,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal sender; expected content; no strange CTA."},
+
+      // 16 — SharePoint official (legit) [flipped]
+      { id:16,time:"10:04",fromName:"SharePoint",fromEmail:"no-reply@sharepointonline.com",
+        replyTo:"no-reply@sharepointonline.com",subject:"Alex Gomez shared 'Q4_Project_Tasks.xlsx'",
+        body:`Open file: <a class="fake" data-href="https://novacore.sharepoint.com/:x:/r/Shared%20Documents/Q4_Project_Tasks.xlsx">SharePoint</a>`,
+        attachments:[],links:["https://novacore.sharepoint.com/:x:/r/Shared%20Documents/Q4_Project_Tasks.xlsx"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:4000,fromDomain:"sharepointonline.com"},
+        classification:"legit",
+        explanation:"Official SharePoint tenant link; authentication passes."},
+
+      // 17 — Team birthdays (legit)
+      { id:17,time:"10:08",fromName:"HR",fromEmail:"hr@novacore.com",
+        replyTo:"hr@novacore.com",subject:"October birthdays 🎂",
+        body:`This month's birthdays are on the wiki.`,
+        attachments:[],links:["https://wiki.novacore.com/hr/birthdays"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:4000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Routine HR message; internal link."},
+
+      // 18 — VPN typosquat (phish)
+      { id:18,time:"10:12",fromName:"VPN Service",fromEmail:"vpn@novac0re.com",
+        replyTo:"vpn@novac0re.com",subject:"Your VPN password expires today",
+        body:`Renew password: <a class="fake" data-href="https://novac0re.com/vpn/reset">Reset now</a>`,
+        attachments:[],links:["https://novac0re.com/vpn/reset"],
+        headers:{spf:"fail",dkim:"none",dmarc:"fail",ageDays:0,fromDomain:"novac0re.com"},
+        classification:"phish",
+        explanation:"Typosquat (0 instead of o); fake service."},
+
+      // 19 — Legal NDA (legit)
+      { id:19,time:"10:16",fromName:"Omar El-Sayed",fromEmail:"omar.elsayed@novacore.com",
+        replyTo:"legal@novacore.com",subject:"Updated NDA template",
+        body:`Please use this NDA for Q4 engagements.`,
+        attachments:[{name:"NDA_Template.docx",type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:2600,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal legal; expected doc; no credential ask."},
+
+      // 20 — Voicemail internal (legit) [flipped]
+      { id:20,time:"10:20",fromName:"Voicemail",fromEmail:"voicemail@novacore.com",
+        replyTo:"voicemail@novacore.com",subject:"New voicemail (00:29)",
+        body:`Play message in attachment.`,
+        attachments:[{name:"voicemail.wav",type:"audio/wav",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:5000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal unified comms; expected file type; passes auth."},
+
+      // 21 — Slack mention (legit)
+      { id:21,time:"10:24",fromName:"Slack",fromEmail:"no-reply@slack.com",
+        replyTo:"no-reply@slack.com",subject:"You were mentioned by Jonas",
+        body:`Jump to message: <a class="fake" data-href="https://novacore.slack.com/archives/C123/p456">Slack</a>`,
+        attachments:[],links:["https://novacore.slack.com/archives/C123/p456"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:5000,fromDomain:"slack.com"},
+        classification:"legit",
+        explanation:"Known service; enterprise workspace domain."},
+
+      // 22 — Slack security update (legit) [flipped]
+      { id:22,time:"10:28",fromName:"Slack",fromEmail:"no-reply@slack.com",
+        replyTo:"no-reply@slack.com",subject:"Security update: 2FA enforcement next week",
+        body:`Heads-up: starting next week, 2FA is required. Manage from Slack app. Details: <a class="fake" data-href="https://slack.com/help/articles/115001540307">Slack help</a>`,
+        attachments:[],links:["https://slack.com/help/articles/115001540307"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:6000,fromDomain:"slack.com"},
+        classification:"legit",
+        explanation:"Official Slack domain; informational notice; no credential form in email."},
+
+      // 23 — AWS billing (legit)
+      { id:23,time:"10:32",fromName:"AWS Notifications",fromEmail:"no-reply@sns.amazonaws.com",
+        replyTo:"no-reply@sns.amazonaws.com",subject:"[AWS] Billing alert threshold exceeded",
+        body:`Your billing alarm exceeded threshold.`,
+        attachments:[],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:7000,fromDomain:"sns.amazonaws.com"},
+        classification:"legit",
+        explanation:"Known domain; no credential ask."},
+
+      // 24 — Credential ask from colleague (phish)
+      { id:24,time:"10:36",fromName:"Alex Gomez",fromEmail:"alex.gomez@novacore.com",
+        replyTo:"alex.gomez@novacore.com",subject:"Need your VPN password urgently",
+        body:`Can you send me your VPN password? Mine is blocked.`,
+        attachments:[],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:3200,fromDomain:"novacore.com"},
+        classification:"phish",
+        explanation:"Even from a colleague, credential sharing is never legitimate."},
+
+      // 25 — Microsoft legit
+      { id:25,time:"10:40",fromName:"Microsoft account team",fromEmail:"account-security-noreply@accountprotection.microsoft.com",
+        replyTo:"account-security-noreply@accountprotection.microsoft.com",subject:"Your password will expire soon",
+        body:`If your org enforces password rotation, you'll be prompted at sign-in. No action via email.`,
+        attachments:[],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:8000,fromDomain:"accountprotection.microsoft.com"},
+        classification:"legit",
+        explanation:"Official Microsoft; no embedded credential link."},
+
+      // 26 — Box share legit
+      { id:26,time:"10:44",fromName:"Box",fromEmail:"no-reply@box.com",
+        replyTo:"no-reply@box.com",subject:"Sarah Jones has invited you to a file on Box",
+        body:`Open: <a class="fake" data-href="https://novacore.app.box.com/s/abc123">Box link</a>`,
+        attachments:[],links:["https://novacore.app.box.com/s/abc123"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:7000,fromDomain:"box.com"},
+        classification:"legit",
+        explanation:"Trusted vendor; enterprise subdomain."},
+
+      // 27 — Dropbox share legit [flipped]
+      { id:27,time:"10:48",fromName:"Dropbox",fromEmail:"no-reply@dropbox.com",
+        replyTo:"no-reply@dropbox.com",subject:"Sarah Jones shared 'Q4 Roadmap.pdf'",
+        body:`Open: <a class="fake" data-href="https://www.dropbox.com/scl/fi/abc123/Q4-Roadmap.pdf?rlkey=xyz">Dropbox link</a>`,
+        attachments:[],links:["https://www.dropbox.com/scl/fi/abc123/Q4-Roadmap.pdf?rlkey=xyz"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:8000,fromDomain:"dropbox.com"},
+        classification:"legit",
+        explanation:"Official Dropbox share from a colleague; authentication passes."},
+
+      // 28 — Expense policy (legit)
+      { id:28,time:"10:52",fromName:"Finance",fromEmail:"finance@novacore.com",
+        replyTo:"finance@novacore.com",subject:"Reminder: Q4 expense deadlines",
+        body:`Submit by the 3rd business day next month. Details on the wiki.`,
+        attachments:[],links:["https://wiki.novacore.com/finance/expenses"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:3300,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal process reminder."},
+
+      // 29 — Apple refund lure (phish)
+      { id:29,time:"10:56",fromName:"Apple",fromEmail:"no-reply@applestore-billing.com",
+        replyTo:"no-reply@applestore-billing.com",subject:"Your receipt for €89.99",
+        body:`If you didn't make this purchase, cancel here: <a class="fake" data-href="https://applestore-billing.com/refund">Cancel</a>`,
+        attachments:[],links:["https://applestore-billing.com/refund"],
+        headers:{spf:"none",dkim:"none",dmarc:"none",ageDays:0,fromDomain:"applestore-billing.com"},
+        classification:"phish",
+        explanation:"Fake Apple domain; refund lure to steal creds."},
+
+      // 30 — Security keys (legit)
+      { id:30,time:"11:00",fromName:"Security",fromEmail:"security@novacore.com",
+        replyTo:"security@novacore.com",subject:"FIDO2 keys available for request",
+        body:`Request a hardware key here: <a class="fake" data-href="https://wiki.novacore.com/security/fido2">policy</a>.`,
+        attachments:[],links:["https://wiki.novacore.com/security/fido2"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1400,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal security initiative; wiki link."},
+
+      // 31 — FedEx bogus (phish)
+      { id:31,time:"11:04",fromName:"FedEx",fromEmail:"notice@fedex-track.co",
+        replyTo:"notice@fedex-track.co",subject:"Delivery failed — address required",
+        body:`Update here: <a class="fake" data-href="https://fedex-track.co/resolve">Update address</a>`,
+        attachments:[],links:["https://fedex-track.co/resolve"],
+        headers:{spf:"fail",dkim:"none",dmarc:"fail",ageDays:3,fromDomain:"fedex-track.co"},
+        classification:"phish",
+        explanation:"Fake tracking domain; credential capture flow."},
+
+      // 32 — On-call (legit)
+      { id:32,time:"11:08",fromName:"Jonas Richter",fromEmail:"jonas.richter@novacore.com",
+        replyTo:"sre@novacore.com",subject:"On-call runbook update",
+        body:`New escalation chain is on the repo.`,
+        attachments:[],links:["https://wiki.novacore.com/engineering/oncall"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:2000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal; expected context."},
+
+      // 33 — Okta scare (phish)
+      { id:33,time:"11:12",fromName:"Okta",fromEmail:"no-reply@okta-secure.net",
+        replyTo:"no-reply@okta-secure.net",subject:"MFA reset request received",
+        body:`If this was not you, secure your account: <a class="fake" data-href="https://okta-secure.net/recover">Secure now</a>`,
+        attachments:[],links:["https://okta-secure.net/recover"],
+        headers:{spf:"softfail",dkim:"none",dmarc:"fail",ageDays:1,fromDomain:"okta-secure.net"},
+        classification:"phish",
+        explanation:"Not an Okta domain; scare tactic."},
+
+      // 34 — Town Hall (legit)
+      { id:34,time:"11:16",fromName:"CEO Office",fromEmail:"ceo-office@novacore.com",
+        replyTo:"ceo-office@novacore.com",subject:"Town Hall tomorrow",
+        body:`Reminder: All-hands tomorrow 10:00.`,
+        attachments:[{name:"townhall.ics",type:"text/calendar",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:5000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal invite; expected organizer."},
+
+      // 35 — DocuSign lookalike (phish)
+      { id:35,time:"11:20",fromName:"DocuSign",fromEmail:"dse@docusign-secure.net",
+        replyTo:"dse@docusign-secure.net",subject:"Please review and sign",
+        body:`Open envelope: <a class="fake" data-href="https://docusign-secure.net/envelope/8877">View</a>`,
+        attachments:[],links:["https://docusign-secure.net/envelope/8877"],
+        headers:{spf:"softfail",dkim:"none",dmarc:"none",ageDays:2,fromDomain:"docusign-secure.net"},
+        classification:"phish",
+        explanation:"Not DocuSign; tries to capture creds."},
+
+      // 36 — DocuSign legit
+      { id:36,time:"11:24",fromName:"DocuSign",fromEmail:"dse_na2@docusign.net",
+        replyTo:"dse_na2@docusign.net",subject:"Action required: Sign Novacore vendor contract",
+        body:`Open envelope: <a class="fake" data-href="https://na2.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=abc">DocuSign</a>`,
+        attachments:[],links:["https://na2.docusign.net/Member/PowerFormSigning.aspx?PowerFormId=abc"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:9000,fromDomain:"docusign.net"},
+        classification:"legit",
+        explanation:"Official DocuSign domain; passes auth."},
+
+      // 37 — QR parking scam (phish)
+      { id:37,time:"11:28",fromName:"City Parking",fromEmail:"notify@city-parking-pay.co",
+        replyTo:"notify@city-parking-pay.co",subject:"Parking violation: pay now",
+        body:`Pay by scanning the QR.`,
+        attachments:[{name:"pay_qr.png",type:"image/png",malicious:true}],links:[],
+        headers:{spf:"none",dkim:"none",dmarc:"none",ageDays:0,fromDomain:"city-parking-pay.co"},
+        classification:"phish",
+        explanation:"Irrelevant to corporate inbox; QR lure."},
+
+      // 38 — Jira (legit)
+      { id:38,time:"11:32",fromName:"Jira",fromEmail:"jira@novacore.atlassian.net",
+        replyTo:"no-reply@atlassian.com",subject:"[JIRA] Issue assigned: SEC-442",
+        body:`View: <a class="fake" data-href="https://novacore.atlassian.net/browse/SEC-442">Jira</a>`,
+        attachments:[],links:["https://novacore.atlassian.net/browse/SEC-442"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:6000,fromDomain:"novacore.atlassian.net"},
+        classification:"legit",
+        explanation:"Enterprise tenant domain; normal workflow."},
+
+      // 39 — Homograph reply-to (phish)
+      { id:39,time:"11:36",fromName:"Priya Patel",fromEmail:"priya.patel@novacore.com",
+        replyTo:"priya.patel@novаcore.com",subject:"Wire details for Q3 close",
+        body:`Please confirm the wire details attached.`,
+        attachments:[{name:"WireDetails.pdf",type:"application/pdf",malicious:true}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:3100,fromDomain:"novacore.com"},
+        classification:"phish",
+        explanation:"Display sender authentic, but reply-to homograph (Cyrillic 'a')."},
+
+      // 40 — Training (legit)
+      { id:40,time:"11:40",fromName:"Liu Wei",fromEmail:"liu.wei@novacore.com",
+        replyTo:"security@novacore.com",subject:"Quarterly security training (self-paced)",
+        body:`Link: <a class="fake" data-href="https://wiki.novacore.com/security/training">training portal</a>`,
+        attachments:[],links:["https://wiki.novacore.com/security/training"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1800,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal; wiki-based training."},
+
+      // 41 — OneDrive lookalike (phish)
+      { id:41,time:"11:44",fromName:"OneDrive",fromEmail:"noreply@onedrive-secure.cloud",
+        replyTo:"noreply@onedrive-secure.cloud",subject:"Alex shared a folder",
+        body:`Open: <a class="fake" data-href="https://onedrive-secure.cloud/s/abc">Open folder</a>`,
+        attachments:[],links:["https://onedrive-secure.cloud/s/abc"],
+        headers:{spf:"softfail",dkim:"none",dmarc:"fail",ageDays:1,fromDomain:"onedrive-secure.cloud"},
+        classification:"phish",
+        explanation:"Not a Microsoft domain; generic link."},
+
+      // 42 — Marketing brief (legit)
+      { id:42,time:"11:48",fromName:"Sarah Jones",fromEmail:"sarah.jones@novacore.com",
+        replyTo:"marketing@novacore.com",subject:"Campaign brief: Orion Launch",
+        body:`Brief attached. Feedback welcome by EOD.`,
+        attachments:[{name:"Orion_Brief.pdf",type:"application/pdf",malicious:false}],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:1500,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal marketing; normal attachment."},
+
+      // 43 — Adobe Sign lookalike (phish)
+      { id:43,time:"11:52",fromName:"Adobe Sign",fromEmail:"noreply@adobesign-docs.net",
+        replyTo:"noreply@adobesign-docs.net",subject:"Action required: signature",
+        body:`Sign: <a class="fake" data-href="https://adobesign-docs.net/doc/xyz">Open document</a>`,
+        attachments:[],links:["https://adobesign-docs.net/doc/xyz"],
+        headers:{spf:"none",dkim:"none",dmarc:"none",ageDays:2,fromDomain:"adobesign-docs.net"},
+        classification:"phish",
+        explanation:"Not an Adobe domain; generic link farm."},
+
+      // 44 — Teams invite (legit)
+      { id:44,time:"11:56",fromName:"Microsoft Teams",fromEmail:"no-reply@teams.microsoft.com",
+        replyTo:"no-reply@teams.microsoft.com",subject:"Meeting: Partner Sync",
+        body:`Join: <a class="fake" data-href="https://teams.microsoft.com/l/meetup-join/19%3ameeting%3aabc">Teams</a>`,
+        attachments:[],links:["https://teams.microsoft.com/l/meetup-join/19%3ameeting%3aabc"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:9000,fromDomain:"teams.microsoft.com"},
+        classification:"legit",
+        explanation:"Official Microsoft domain."},
+
+      // 45 — Tax forms upload (legit)
+      { id:45,time:"12:00",fromName:"Finance",fromEmail:"finance@novacore.com",
+        replyTo:"finance@novacore.com",subject:"Supplier tax form request (W-8/W-9)",
+        body:`Secure upload portal: <a class="fake" data-href="https://upload.novacore.com/tax-forms">upload.novacore.com</a>`,
+        attachments:[],links:["https://upload.novacore.com/tax-forms"],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:900,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Company subdomain; legitimate business process."},
+
+      // 46 — Fake upload portal (phish)
+      { id:46,time:"12:04",fromName:"Finance",fromEmail:"finance@novacore.support",
+        replyTo:"finance@novacore.support",subject:"Supplier tax form request (urgent)",
+        body:`Upload portal: <a class="fake" data-href="https://novacore.support/forms">forms</a>`,
+        attachments:[],links:["https://novacore.support/forms"],
+        headers:{spf:"fail",dkim:"none",dmarc:"none",ageDays:0,fromDomain:"novacore.support"},
+        classification:"phish",
+        explanation:"Wrong TLD (.support) and urgency tactic."},
+
+      // 47 — IT ticket closed (legit)
+      { id:47,time:"12:08",fromName:"IT Service Desk",fromEmail:"it@novacore.com",
+        replyTo:"it@novacore.com",subject:"Ticket #4412 auto-closed",
+        body:`Your printer ticket was closed. Reply if issue persists.`,
+        attachments:[],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:4000,fromDomain:"novacore.com"},
+        classification:"legit",
+        explanation:"Internal IT; no link/attachment."},
+
+      // 48 — Crypto spam (phish)
+      { id:48,time:"12:12",fromName:"InvestNow",fromEmail:"promotions@invest-now.biz",
+        replyTo:"promotions@invest-now.biz",subject:"Your guaranteed 18% APY",
+        body:`Start now: <a class="fake" data-href="https://invest-now.biz/signup">Sign up</a>`,
+        attachments:[],links:["https://invest-now.biz/signup"],
+        headers:{spf:"none",dkim:"none",dmarc:"none",ageDays:0,fromDomain:"invest-now.biz"},
+        classification:"phish",
+        explanation:"Unsolicited investment; non-work; spammy domain."},
+
+      // 49 — Concur itinerary (legit)
+      { id:49,time:"12:16",fromName:"Travel Portal",fromEmail:"no-reply@concur.com",
+        replyTo:"no-reply@concur.com",subject:"Itinerary change: Paris–Berlin",
+        body:`Your itinerary changed. Review in Concur.`,
+        attachments:[],links:[],
+        headers:{spf:"pass",dkim:"pass",dmarc:"pass",ageDays:12000,fromDomain:"concur.com"},
+        classification:"legit",
+        explanation:"Known corporate vendor; no credential link in email."},
+
+      // 50 — SSO session expired fake (phish)
+      { id:50,time:"12:20",fromName:"SSO Admin",fromEmail:"sso@novacore-secure.com",
+        replyTo:"sso@novacore-secure.com",subject:"Your SSO session expired — login again",
+        body:`Restore access: <a class="fake" data-href="https://novacore-secure.com/login">Login</a>`,
+        attachments:[],links:["https://novacore-secure.com/login"],
+        headers:{spf:"softfail",dkim:"none",dmarc:"fail",ageDays:1,fromDomain:"novacore-secure.com"},
+        classification:"phish",
+        explanation:"Fake security domain; credential harvest."},
+    ];
+
+    // Always-first email (legit, a bit "phishy-sounding" but real)
+    const FIRST_EMAIL = {
+      id: 0,
+      time: "09:01",
+      fromName: "CEO Office",
+      fromEmail: "ceo-office@novacore.com",
+      replyTo: "ceo-office@novacore.com",
+      subject: "Quick note before my flight",
+      body: `I'm boarding shortly—thanks for keeping things moving today.<br>
+            If anything feels urgent, follow standard processes and loop in your lead.<br>
+            Town Hall slides: <a class="fake" data-href="https://wiki.novacore.com/allhands/slides">internal deck</a><br><br>— CEO`,
+      attachments: [],
+      links: ["https://wiki.novacore.com/allhands/slides"],
+      headers: { spf: "pass", dkim: "pass", dmarc: "pass", ageDays: 5000, fromDomain: "novacore.com" },
+      classification: "legit",
+      explanation: "Authentic internal domain and headers. Urgent tone mirrors common phish themes, but no credential or money request."
+    };
+
+    /*********************************
+     * STATE
+     *********************************/
+    let state = {
+      nowMin: WORK_START,
+      inbox: [],           // emails that have arrived
+      selected: null,
+      filter: 'all',
+      score: 0,
+      mistakes: 0,
+      revealed: false,
+      headersOpen: false,
+      flagged: new Set(),
+      reported: new Set(),
+      decided: new Map(),  // id -> 'safe' | 'phish'
+      started: false,      // start after closing Help
+      timer: null,
+      dealtCount: 0
+    };
+
+    /*********************************
+     * INIT
+     *********************************/
+    const inboxList = document.getElementById('inboxList');
+    const workClock = document.getElementById('workClock');
+    const toast = document.getElementById('toast');
+
+    const headSubject = document.getElementById('headSubject');
+    const headMeta = document.getElementById('headMeta');
+    const readerBody = document.getElementById('readerBody');
+    const readerDrawer = document.getElementById('readerDrawer');
+    const headersBox = document.getElementById('headersBox');
+    const avatar = document.getElementById('avatar');
+
+    const btnDirectory = document.getElementById('btnDirectory');
+    const dirModal = document.getElementById('dirModal');
+    const dirGrid = document.getElementById('dirGrid');
+    const dirSearch = document.getElementById('dirSearch');
+
+    const helpModal = document.getElementById('helpModal');
+    const btnHelp = document.getElementById('btnHelp');
+
+    const endModal = document.getElementById('endModal');
+    const debriefBox = document.getElementById('debrief');
+
+    document.getElementById('closeDir').onclick = () => dirModal.style.display = 'none';
+    document.getElementById('closeHelp').onclick = () => {
+      helpModal.style.display = 'none';
+      if (!state.started) start(); // start only once
+    };
+    document.getElementById('btnDirectory').onclick = () => { renderDirectory(); dirModal.style.display = 'flex' };
+    document.getElementById('btnHelp').onclick = () => helpModal.style.display = 'flex';
+    document.getElementById('closeEnd').onclick = () => endModal.style.display = 'none';
+
+    document.getElementById('actMarkSafe').onclick = () => decide('safe');
+    document.getElementById('actReport').onclick = () => decide('phish');
+    document.getElementById('actFlag').onclick = () => toggleFlag();
+    document.getElementById('actHeaders').onclick = () => toggleHeaders();
+    document.getElementById('actReveal').onclick = () => toggleReveal();
+    document.getElementById('actSandbox').onclick = () => sandboxOpen();
+    document.getElementById('actAttach').onclick = () => showAttachment();
+
+    document.querySelectorAll('.pill').forEach(p => {
+      p.addEventListener('click', () => {
+        document.querySelectorAll('.pill').forEach(x => x.classList.remove('active'));
+        p.classList.add('active');
+        state.filter = p.dataset.filter;
+        renderInbox();
+      })
+    });
+
+    dirSearch.addEventListener('input', renderDirectory);
+
+    // Show How to Play immediately (game starts when closed)
+    helpModal.style.display = 'flex';
+
+    function start() {
+      if (state.started) return;
+      state.started = true;
+
+      // Inject the first unread CEO email immediately
+      const first = { ...FIRST_EMAIL, min: WORK_START + 1 };
+      state.inbox.push({ ...first, unread: true });
+
+      scheduleEmails();           // schedules the remaining random emails
+      renderInbox();
+      tick();
+      state.timer = setInterval(() => { advanceTime(); }, TICK_MS);
+    }
+
+    function scheduleEmails() {
+      const target = Math.max(0, EMAILS_TO_DEAL - 1); // one slot taken by FIRST_EMAIL
+      const pool = [...emails];
+      const sample = [];
+      while (pool.length && sample.length < target) {
+        const i = Math.floor(Math.random() * pool.length);
+        sample.push(pool.splice(i, 1)[0]);
+      }
+      let next = WORK_START + 6;
+      sample.forEach(e => { e.min = toMin(e.time) || next; next += EMAIL_INTERVAL_MIN + Math.floor(Math.random() * 6); });
+      sample.sort((a, b) => a.min - b.min);
+      state.schedule = sample;
+      state.dealtCount = sample.length + 1; // include FIRST_EMAIL
+    }
+
+
+    function toMin(hhmm) { if (!hhmm) return null; const [h, m] = hhmm.split(':').map(n => +n); return h * 60 + m; }
+    function fmtMin(min) { const h = Math.floor(min / 60), m = min % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
+
+    function advanceTime() {
+      state.nowMin += 10; // 10 minutes per tick
+      if (state.nowMin >= WORK_END) {
+        clearInterval(state.timer);
+        endOfDay();
+        return;
+      }
+      tick();
+    }
+
+    function tick() {
+      workClock.textContent = fmtMin(state.nowMin);
+      // move emails from schedule to inbox when due
+      while (state.schedule && state.schedule.length && state.schedule[0].min <= state.nowMin) {
+        const e = state.schedule.shift();
+        state.inbox.push({ ...e, unread: true });
+      }
+      renderInbox();
+    }
+
+    function renderInbox() {
+      const f = state.filter;
+      inboxList.innerHTML = '';
+      let show = state.inbox;
+      if (f === 'unread') show = show.filter(e => e.unread);
+      if (f === 'flagged') show = show.filter(e => state.flagged.has(e.id));
+      if (f === 'phish') show = show.filter(e => state.reported.has(e.id));
+
+      show.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'email-item' + (e.unread ? ' unread' : '');
+        row.innerHTML = `
+          <div>
+            <div class="from">${escapeHtml(e.fromName)} <span class="meta">&lt;${escapeHtml(e.fromEmail)}&gt;</span></div>
+            <div class="subject">${escapeHtml(e.subject)} ${state.flagged.has(e.id) ? '<span class="tag">flagged</span>' : ''} ${state.reported.has(e.id) ? '<span class="tag">reported</span>' : ''}</div>
+            <div class="meta">${fmtMin(e.min)} · ${e.attachments?.length ? '📎 ' + e.attachments.map(a => a.name).join(', ') : ''}</div>
+          </div>
+          <div class="meta">${SHOW_ANSWER_KEY ? (e.classification === 'phish' ? '🚨' : '✅') : ''}</div>
+        `;
+        row.onclick = () => openEmail(e.id);
+        inboxList.appendChild(row);
+      });
+    }
+
+    function openEmail(id) {
+      const e = state.inbox.find(x => x.id === id); if (!e) return;
+      state.selected = e; e.unread = false; state.revealed = false; state.headersOpen = false;
+      avatar.textContent = initials(e.fromName);
+      headSubject.textContent = e.subject;
+      headMeta.textContent = `${e.fromName} <${e.fromEmail}> · ${fmtMin(e.min)}`;
+      const body = (e.body || '').replace(/\n/g, "<br>");
+      readerBody.innerHTML = `<div>${body}</div>`;
+      readerDrawer.style.display = 'block';
+      headersBox.style.display = 'none';
+    }
+
+    function toggleHeaders() {
+      const e = state.selected; if (!e) return;
+      state.headersOpen = !state.headersOpen;
+      if (state.headersOpen) {
+        const h = e.headers || {};
+        headersBox.textContent = `From: ${e.fromName} <${e.fromEmail}>
+Reply-To: ${e.replyTo || '(none)'}
+Auth: SPF=${h.spf || 'n/a'}; DKIM=${h.dkim || 'n/a'}; DMARC=${h.dmarc || 'n/a'}
+Sending-Domain: ${h.fromDomain || '(unknown)'} (age ${h.ageDays ?? '?'} days)
+Received: ${e.min ? 'Today ' + fmtMin(e.min) : '(time unknown)'}
+X-Mailer: ${h.mailer || 'generic'}`;
+      }
+      headersBox.style.display = state.headersOpen ? 'block' : 'none';
+    }
+
+    function toggleReveal() {
+      const e = state.selected; if (!e) return;
+      state.revealed = !state.revealed;
+      const els = readerBody.querySelectorAll('a.fake');
+      els.forEach(a => {
+        if (state.revealed) { a.textContent = a.dataset.href; }
+        else {
+          const t = a.dataset.href || '';
+          a.textContent = t.slice(0, 28) + (t.length > 28 ? '…' : '');
+        }
+      });
+    }
+
+    function sandboxOpen() {
+      const e = state.selected; if (!e) return;
+      if (!e.links || !e.links.length) return toastMsg('No links to open.');
+      const dest = e.links[0];
+      toastMsg(`Sandbox opened: ${dest}`);
+      if (e.classification === 'phish') { addMistake(1, 'Opened a malicious link (simulated).'); }
+    }
+
+    function showAttachment() {
+      const e = state.selected; if (!e) return;
+      if (!e.attachments || !e.attachments.length) return toastMsg('No attachments.');
+      const a = e.attachments[0];
+      toastMsg(`Attachment preview: ${a.name} (${a.type})`);
+      if (a.malicious) { addMistake(1, 'Interacted with a malicious attachment (simulated).'); }
+    }
+
+    function toggleFlag() {
+      const e = state.selected; if (!e) return;
+      if (state.flagged.has(e.id)) state.flagged.delete(e.id); else state.flagged.add(e.id);
+      renderInbox();
+    }
+
+    function decide(type) {
+      const e = state.selected; if (!e) return;
+      state.decided.set(e.id, type);
+      if (type === 'phish') { state.reported.add(e.id); }
+      const correct = (type === 'safe' && e.classification === 'legit') || (type === 'phish' && e.classification === 'phish');
+      if (correct) { state.score += 2; toastMsg('Decision recorded ✅ (+2)'); }
+      else { addMistake(2, 'Incorrect decision (−2).'); }
+      updateStats();
+      const next = state.inbox.find(x => x.unread);
+      if (next) openEmail(next.id);
+      renderInbox();
+    }
+
+    function addMistake(n, msg) { state.mistakes += n; toastMsg(msg); updateStats(); }
+    function updateStats() { /* badges removed */ }
+
+    /*********************************
+     * Directory rendering
+     *********************************/
+    function renderDirectory() {
+      const q = (dirSearch.value || '').toLowerCase();
+      dirGrid.innerHTML = '';
+      directory.filter(p => {
+        const blob = `${p.name} ${p.team} ${p.role} ${p.email}`.toLowerCase();
+        return !q || blob.includes(q);
+      }).forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'person';
+        const img = p.img ? `<img src="${p.img}" alt="${p.name}">` : `<div class="mono">${initials(p.name)}</div>`;
+        card.innerHTML = `
+          <div class="p-top">${img}
+            <div>
+              <div class="name">${escapeHtml(p.name)}</div>
+              <div class="mail">${escapeHtml(p.email)}</div>
+            </div>
+          </div>
+          <div class="meta">${escapeHtml(p.team)} — ${escapeHtml(p.role)}</div>
+          <div class="meta">Ext: ${escapeHtml(p.phone)}</div>
+        `;
+        dirGrid.appendChild(card);
+      });
+    }
+
+    /*********************************
+     * End-of-Day
+     *********************************/
+    function endOfDay() {
+      const pending = state.inbox.filter(e => !state.decided.has(e.id));
+      pending.forEach(() => addMistake(1, 'Undecided at end of day (−1).'));
+
+      const rows = state.inbox.map(e => {
+        const decision = state.decided.get(e.id) || (state.flagged.has(e.id) ? 'flagged' : 'none');
+        const verdict = e.classification.toUpperCase();
+        const icon = e.classification === 'phish' ? '🚨' : '✅';
+        const correct = (decision === 'safe' && e.classification === 'legit') || (decision === 'phish' && e.classification === 'phish');
+        return `<li>${icon} <b>${escapeHtml(e.subject)}</b> — From: ${escapeHtml(e.fromEmail)} — You: <code class="inline">${decision}</code> — Truth: <code class="inline">${verdict}</code>${correct ? '' : ' — <span style="color:var(--danger)">Why: ' + escapeHtml(e.explanation) + '</span>'}</li>`;
+      }).join('');
+
+      const grade = gradePlayer(state.score, state.mistakes);
+      debriefBox.innerHTML = `
+        <p>Score: <b>${state.score}</b> · Mistakes: <b>${state.mistakes}</b> · Emails handled: <b>${state.inbox.length}/${state.dealtCount || state.inbox.length}</b></p>
+        <p>Grade: <b style="color:${grade.color}">${grade.label}</b> — ${grade.text}</p>
+        <ul>${rows}</ul>
+      `;
+      endModal.style.display = 'flex';
+    }
+
+    function gradePlayer(score, mistakes) {
+      const totalPossible = (state.dealtCount || state.inbox.length) * 2;
+      const pct = Math.max(0, Math.min(1, score / totalPossible));
+      if (pct >= 0.9 && mistakes < 3) return { label: 'S (Analyst Pro)', color: 'var(--ok)', text: 'Elite vigilance. You catch nuanced threats without over-reporting.' };
+      if (pct >= 0.75) return { label: 'A', color: 'var(--ok)', text: 'Strong performance. A few tricky traps slipped through.' };
+      if (pct >= 0.6)  return { label: 'B', color: 'var(--warn)', text: 'Good baseline. Re-check reply-to domains and link reveals.' };
+      return { label: 'C', color: 'var(--danger)', text: 'You missed several patterns. Rely on the directory and headers more often.' };
+    }
+
+    /*********************************
+     * Utils
+     *********************************/
+    // Toast helper (used by sandboxOpen, showAttachment, decide, addMistake, endOfDay)
+    function toastMsg(msg, ms = 2000) {
+      const el = document.getElementById('toast');
+      if (!el) return; // safe guard if the node was removed
+      el.textContent = msg;
+      el.style.display = 'block';
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.style.display = 'none'; }, ms);
+    }
+
+    function escapeHtml(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  </script>
+</body>
+
+</html>
